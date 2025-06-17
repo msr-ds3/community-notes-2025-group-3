@@ -1,0 +1,1 @@
+unzip -p "ratings-00xx.zip"
