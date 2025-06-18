@@ -147,7 +147,138 @@ scale_y_log10(
     )
 ```
 
+```{r figure-7a, fig.width=4, fig.height=4}
+work_figure_7a_misleading <- notes_with_ratings |>
+    filter(classification == "MISINFORMED_OR_POTENTIALLY_MISLEADING") |>
+    group_by(noteId) |>
+    summarize(helpful_count = sum(helpful), votes_count = n()) |>
+    mutate(helpful_ratio = helpful_count / votes_count) |>
+    arrange(helpful_ratio) |>
+    count(helpful_ratio) |>
+    arrange(desc(helpful_ratio)) |>
+    mutate(cummulative = cumsum(n), classification = "MISINFORMED_OR_POTENTIALLY_MISLEADING")
 
+work_figure_7a_not_misleading <- notes_with_ratings |>
+    filter(classification == "NOT_MISLEADING") |>
+    group_by(noteId) |>
+    summarize(helpful_count = sum(helpful), votes_count = n()) |>
+    mutate(helpful_ratio = helpful_count / votes_count) |>
+    arrange(helpful_ratio) |>
+    count(helpful_ratio) |>
+    arrange(desc(helpful_ratio)) |>
+    mutate(cummulative = cumsum(n), classification = "NOT_MISLEADING")
+
+work_figure_7a <- bind_rows(work_figure_7a_misleading, work_figure_7a_not_misleading)
+
+work_figure_7a_CCDF <- work_figure_7a |>
+    group_by(classification) |>
+    summarize(helpful_ratio, CCDF = cummulative / max(cummulative)) |>
+    arrange(classification, helpful_ratio)
+
+View(work_figure_7a_CCDF)
+
+work_figure_7a_CCDF |> ggplot(aes(x = helpful_ratio, y = CCDF, color = classification)) +
+    geom_line() +
+    scale_y_log10(
+        labels = scales::percent_format()
+    )
+```
+
+```{r figure-7b, fig.width=4, fig.height=4}
+figure_7b_not_misleading <- notes_with_ratings |>
+    filter(classification == "NOT_MISLEADING") |>
+    group_by(noteId) |>
+    summarize(votes_count = n()) |>
+    arrange(desc(votes_count)) |>
+    mutate(
+        cummulative = cumsum(votes_count),
+        CCDF = cummulative / max(cummulative),
+        classification = "NOT_MISLEADING"
+    )
+
+figure_7b_misleading <- notes_with_ratings |>
+    filter(classification == "MISINFORMED_OR_POTENTIALLY_MISLEADING") |>
+    group_by(noteId) |>
+    summarize(votes_count = n()) |>
+    arrange(desc(votes_count)) |>
+    mutate(
+        cummulative = cumsum(votes_count),
+        CCDF = cummulative / max(cummulative),
+        classification = "MISLEADING"
+    )
+
+figure_7b <- bind_rows(figure_7b_misleading, figure_7b_not_misleading)
+
+figure_7b |> ggplot(aes(x = votes_count, y = CCDF, color = classification)) +
+    geom_line(size = 2) +
+    scale_y_log10(
+        labels = scales::percent_format(),
+        breaks = c(0.0001, 0.001, 0.01, 0.1, 1)
+    )
+```
+
+```{r figure_8, fig.width=4, fig.height=4}
+figure_8_helpful <- notes_with_ratings |>
+    filter(classification == "MISINFORMED_OR_POTENTIALLY_MISLEADING") |>
+    select(
+        noteId,
+        helpfulOther,
+        helpfulInformative,
+        helpfulClear,
+        helpfulEmpathetic,
+        helpfulGoodSources,
+        helpfulUniqueContext,
+        helpfulAddressesClaim,
+        helpfulImportantContext,
+    )
+
+figure_8_longer <- figure_8_helpful |> pivot_longer(cols = -noteId, names_to = "Reason", values_to = "Flag")
+
+figure_8_longer <- figure_8_longer |> filter(Flag == 1)
+figure_8_longer <- figure_8_longer |>
+    group_by(Reason) |>
+    summarise(Number_Notes = n_distinct(noteId))
+
+figure_8_longer |> ggplot(aes(x = Number_Notes, y = reorder(Reason, Number_Notes))) +
+    geom_bar(stat = "identity", fill = "blue", width = 0.2) +
+    labs(
+        x = "Number of Birdwatch Notes",
+        y = "Reason"
+    )
+```
+
+```{r figure-9, fig.width=4, fig.height=4}
+figure_9_helpful <- notes_with_ratings |>
+    filter(classification == "NOT_MISLEADING") |>
+    select(
+        noteId,
+        notHelpfulSourcesMissingOrUnreliable,
+        notHelpfulOpinionSpeculationOrBias,
+        notHelpfulMissingKeyPoints,
+        notHelpfulArgumentativeOrBiased,
+        notHelpfulIncorrect,
+        notHelpfulOffTopic,
+        notHelpfulOther,
+        notHelpfulHardToUnderstand,
+        notHelpfulSpamHarassmentOrAbuse,
+        notHelpfulOutdated,
+        notHelpfulIrrelevantSources,
+    )
+
+figure_9_longer <- figure_9_helpful |> pivot_longer(cols = -noteId, names_to = "Reason", values_to = "Flag")
+
+figure_9_longer <- figure_9_longer |> filter(Flag == 1)
+figure_9_longer <- figure_9_longer |>
+    group_by(Reason) |>
+    summarise(Number_Notes = n_distinct(noteId))
+
+figure_9_longer |> ggplot(aes(x = Number_Notes, y = reorder(Reason, Number_Notes))) +
+    geom_bar(stat = "identity", fill = "blue", width = 0.2) +
+    labs(
+        x = "Number of Birdwatch Notes",
+        y = "Reason"
+    )
+```
 
 
 
