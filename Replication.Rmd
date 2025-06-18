@@ -1,0 +1,153 @@
+```{r setup, include=FALSE}
+library(here)
+library(scales)
+library(tidyverse)
+library(ggplot2)
+library(stringr)
+
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r load data}
+notes <- read_tsv("Data/notes.tsv")
+view(notes)
+
+ratings <- read_tsv("Data/ratings.tsv")
+view(ratings)
+
+notes_with_ratings <- left_join(notes, ratings, by = "noteId") 
+
+view(notes_with_ratings)
+
+max(ratings$createdAtMillis)
+max(notes$createdAtMillis)
+
+
+n_distinct(notes_with_ratings$noteId)
+
+```
+
+```{r work on Figure 2, fig.width=4, fig.height=4}
+n_distinct(notes_with_ratings$classification) # to make sure what are the possible options for this column 
+
+work_figure_2 <- notes_with_ratings |> group_by(classification, trustworthySources) |> summarise(count = n_distinct(noteId))
+view(work_figure_2)
+
+# change levels of trustworthySources (0,1) to (Trustworthy Sources, No trustworthy Sources) then order the levels for the graph 
+work_figure_2 <- work_figure_2 |> mutate(
+    trustworthySources = factor(trustworthySources, levels = c(1,0), labels =  c("Trustworthy Sources" , "No trustworthy Sources"))
+) 
+work_figure_2$trustworthySources <- factor(work_figure_2$trustworthySources, levels = c("No trustworthy Sources", "Trustworthy Sources"))
+
+
+# Change column classification to factor from chr then order the levels for the graph
+work_figure_2$classification <- as.factor(work_figure_2$classification)
+work_figure_2$classification <- factor(work_figure_2$classification, levels = c("NOT_MISLEADING", "MISINFORMED_OR_POTENTIALLY_MISLEADING"))
+
+
+# plot the graph 
+work_figure_2 |> ggplot(aes(x =  count, y = classification, fill = trustworthySources)) +
+geom_bar(stat = "identity", width = 0.1) + 
+scale_fill_manual(
+    values = c("No trustworthy Sources" = "yellow", "Trustworthy Sources" = "#4141db")) + 
+labs(
+    x = "Number of Users", 
+    y = "Classification", 
+    fill = "Trustworthy Sources"
+)
+```
+
+
+```{r work on Figure 3, fig.width=4, fig.height=4}
+
+view(notes_with_ratings)
+
+work_figure_3 <- notes_with_ratings |> filter(classification == "MISINFORMED_OR_POTENTIALLY_MISLEADING")
+
+work_figure_3 <- work_figure_3 |> 
+select(noteId, 
+    misleadingFactualError, 
+    misleadingMissingImportantContext,
+    misleadingUnverifiedClaimAsFact, 
+    misleadingOutdatedInformation, 
+    misleadingOther, 
+    misleadingSatire, 
+    misleadingManipulatedMedia) 
+
+work_figure_3 <- work_figure_3 |> pivot_longer(cols = -noteId, names_to = "Reason", values_to = "Flag")
+
+work_figure_3 <-  work_figure_3 |> filter(Flag == 1)
+work_figure_3 <- work_figure_3 |> group_by(Reason) |> summarise(Number_Notes = n_distinct(noteId))
+
+work_figure_3 |> ggplot(aes(x = Number_Notes, y = reorder(Reason, Number_Notes))) +
+geom_bar(stat = "identity", fill = "red", width = 0.2) + 
+labs(
+    x = "Number of Birdwatch Notes", 
+    y = "Reason"
+)
+
+
+
+```
+
+
+```{r work Figure 4, fig.width=4, fig.height=4}
+
+view(notes)
+
+
+work_figure_4 <- notes_with_ratings |> filter(classification == "NOT_MISLEADING")
+
+work_figure_4 <- work_figure_4 |> 
+select(
+    noteId,
+    notMisleadingOther, 
+    notMisleadingFactuallyCorrect, 
+    notMisleadingOutdatedButNotWhenWritten, 
+    notMisleadingClearlySatire, 
+    notMisleadingPersonalOpinion, 
+    )
+work_figure_4 <- work_figure_4 |> pivot_longer(cols = -noteId, names_to = "Reason", values_to = "Flag")
+work_figure_4 <- work_figure_4 |> filter(Flag == 1)
+work_figure_4 <- work_figure_4|> group_by(Reason) |> summarise(Number_Notes = n_distinct(noteId))
+
+view(work_figure_4)
+
+work_figure_4 |> ggplot(aes(x = Number_Notes, y = reorder(Reason, Number_Notes))) +
+geom_bar(stat = "identity", fill = "#0e0e6b", width = 0.2) + 
+labs(
+    x = "Number of Birdwatch Notes", 
+    y = "Reason"
+)
+
+```
+
+```{r work Figure 5C, fig.width=4, fig.height=4}
+view(notes)
+
+work_figure_5_c <- notes_with_ratings |> distinct(noteId, .keep_all = TRUE)
+work_figure_5_c <- work_figure_5_c |> mutate(wordcount = str_count(summary, boundary("word")))
+work_figure_5_c <- work_figure_5_c |> group_by(classification) |> arrange(wordcount) |> 
+mutate(
+    rank = row_number(), 
+    n = n(), 
+    CCDF = 1- (rank-1) /n)
+
+    # (rank-1) /n  ==> the fraction of the tweets that have wordcount smaller than the current 
+
+view(work_figure_5_c)
+
+
+work_figure_5_c |> ggplot(aes(x = wordcount, y = CCDF, color = classification)) + 
+geom_line() + 
+scale_y_log10(
+    labels = scales::percent_format(accuracy = 0.01), 
+    breaks = c(0.0001, 0.001, 0.01, 0.1, 1)
+    )
+```
+
+
+
+
+
