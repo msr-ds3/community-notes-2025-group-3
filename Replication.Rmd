@@ -18,13 +18,9 @@ view(ratings)
 
 notes_with_ratings <- left_join(notes, ratings, by = "noteId") 
 
+notes_with_ratingsIJ <-inner_join(notes, ratings, by = "noteId")
+
 view(notes_with_ratings)
-
-max(ratings$createdAtMillis)
-max(notes$createdAtMillis)
-
-
-n_distinct(notes_with_ratings$noteId)
 
 ```
 
@@ -123,12 +119,15 @@ labs(
 
 ```
 
-```{r work Figure 5C, fig.width=4, fig.height=4}
-view(notes)
+```{r work Figure 5C as the paper, fig.width=4, fig.height=4}
 
-work_figure_5_c <- notes_with_ratings |> distinct(noteId, .keep_all = TRUE)
-work_figure_5_c <- work_figure_5_c |> mutate(wordcount = str_count(summary, boundary("word")))
-work_figure_5_c <- work_figure_5_c |> group_by(classification) |> arrange(wordcount) |> 
+work_figure_5_c_as_the_paper <- notes_with_ratings |> distinct(noteId, .keep_all = TRUE)
+
+work_figure_5_c_as_the_paper <- work_figure_5_c_as_the_paper |> mutate(wordcount = str_count(summary, boundary("word")))
+
+view(work_figure_5_c_as_the_paper)
+
+work_figure_5_c_as_the_paper <- work_figure_5_c_as_the_paper |> group_by(classification) |> arrange(wordcount) |> 
 mutate(
     rank = row_number(), 
     n = n(), 
@@ -136,8 +135,40 @@ mutate(
 
     # (rank-1) /n  ==> the fraction of the tweets that have wordcount smaller than the current 
 
+work_figure_5_c_as_the_paper |> ggplot(aes(x = wordcount, y = CCDF, color = classification)) + 
+geom_line() + 
+scale_y_log10(
+    labels = scales::percent_format(accuracy = 0.01), 
+    breaks = c(0.0001, 0.001, 0.01, 0.1, 1)
+    )
+```
+
+
+#Explain it
+
+```{r work Figure 5C our figure, fig.width=4, fig.height=4}
+
+#view(notes_with_ratings |> filter(noteId == 1418151334025461800)) trying something
+
+
+work_figure_5_c <- notes_with_ratings |> distinct(noteId, .keep_all = TRUE)
+
+#To change the URL to be counted as one word
+work_figure_5_c <- work_figure_5_c |> mutate(
+   clean_summary = summary |> str_replace_all("(https?://)?(www\\.)?[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}[^\\s]*", "URL")
+)
+
+work_figure_5_c <- work_figure_5_c |> mutate(wordcount = str_count(clean_summary, boundary("word")))
+
 view(work_figure_5_c)
 
+work_figure_5_c <- work_figure_5_c |> group_by(classification) |> arrange(wordcount) |> 
+mutate(
+    rank = row_number(), 
+    n = n(), 
+    CCDF = 1- (rank-1) /n)
+
+    # (rank-1) /n  ==> the fraction of the tweets that have wordcount smaller than the current 
 
 work_figure_5_c |> ggplot(aes(x = wordcount, y = CCDF, color = classification)) + 
 geom_line() + 
@@ -147,79 +178,53 @@ scale_y_log10(
     )
 ```
 
+
+
 ```{r figure-7a, fig.width=4, fig.height=4}
-work_figure_7a_misleading <- notes_with_ratings |>
-    filter(classification == "MISINFORMED_OR_POTENTIALLY_MISLEADING") |>
-    group_by(noteId) |>
-    summarize(helpful_count = sum(helpful), votes_count = n()) |>
+work_figure_7a <- notes_with_ratingsIJ |> 
+    group_by(classification, noteId) |>
+    summarize(helpful_count = sum(helpful, na.rm = TRUE), votes_count = n()) |>
     mutate(helpful_ratio = helpful_count / votes_count) |>
     arrange(helpful_ratio) |>
-    count(helpful_ratio) |>
-    arrange(desc(helpful_ratio)) |>
-    mutate(cummulative = cumsum(n), classification = "MISINFORMED_OR_POTENTIALLY_MISLEADING")
+    mutate(
+        rank = min_rank(helpful_ratio), 
+        n = n(), 
+        CCDF = 1 - (rank -1)/n
+    )
 
-work_figure_7a_not_misleading <- notes_with_ratings |>
-    filter(classification == "NOT_MISLEADING") |>
-    group_by(noteId) |>
-    summarize(helpful_count = sum(helpful), votes_count = n()) |>
-    mutate(helpful_ratio = helpful_count / votes_count) |>
-    arrange(helpful_ratio) |>
-    count(helpful_ratio) |>
-    arrange(desc(helpful_ratio)) |>
-    mutate(cummulative = cumsum(n), classification = "NOT_MISLEADING")
+view(work_figure_7a)
 
-work_figure_7a <- bind_rows(work_figure_7a_misleading, work_figure_7a_not_misleading)
-
-work_figure_7a_CCDF <- work_figure_7a |>
-    group_by(classification) |>
-    summarize(helpful_ratio, CCDF = cummulative / max(cummulative)) |>
-    arrange(classification, helpful_ratio)
-
-View(work_figure_7a_CCDF)
-
-work_figure_7a_CCDF |> ggplot(aes(x = helpful_ratio, y = CCDF, color = classification)) +
-    geom_line() +
+work_figure_7a |> ggplot(aes(x = helpful_ratio, y = CCDF, color = classification)) +
+    geom_line() +  
     scale_y_log10(
-        labels = scales::percent_format()
+        breaks = c(0,0.25,0.5,1), 
+        labels = scales::percent_format(accuracy = 1)
     )
 ```
 
 ```{r figure-7b, fig.width=4, fig.height=4}
-figure_7b_not_misleading <- notes_with_ratings |>
-    filter(classification == "NOT_MISLEADING") |>
-    group_by(noteId) |>
+
+work_figure_7b<- notes_with_ratingsIJ |>
+     group_by(classification, noteId) |>
     summarize(votes_count = n()) |>
-    arrange(desc(votes_count)) |>
+    arrange(votes_count) |>
     mutate(
-        cummulative = cumsum(votes_count),
-        CCDF = cummulative / max(cummulative),
-        classification = "NOT_MISLEADING"
+        rank = min_rank(votes_count), 
+        n = n(), 
+        CCDF = 1 - (rank -1)/n
     )
 
-figure_7b_misleading <- notes_with_ratings |>
-    filter(classification == "MISINFORMED_OR_POTENTIALLY_MISLEADING") |>
-    group_by(noteId) |>
-    summarize(votes_count = n()) |>
-    arrange(desc(votes_count)) |>
-    mutate(
-        cummulative = cumsum(votes_count),
-        CCDF = cummulative / max(cummulative),
-        classification = "MISLEADING"
-    )
-
-figure_7b <- bind_rows(figure_7b_misleading, figure_7b_not_misleading)
-
-figure_7b |> ggplot(aes(x = votes_count, y = CCDF, color = classification)) +
-    geom_line(size = 2) +
+work_figure_7b |> ggplot(aes(x = votes_count, y = CCDF, color = classification)) +
+    geom_line() +
     scale_y_log10(
-        labels = scales::percent_format(),
-        breaks = c(0.0001, 0.001, 0.01, 0.1, 1)
+        breaks = c(0.0001, 0.001, 0.01, 0.1, 1),
+        labels = scales::percent_format()
+        
     )
 ```
 
 ```{r figure_8, fig.width=4, fig.height=4}
-figure_8_helpful <- notes_with_ratings |>
-    filter(classification == "MISINFORMED_OR_POTENTIALLY_MISLEADING") |>
+figure_8_helpful <- notes_with_ratingsIJ |>
     select(
         noteId,
         helpfulOther,
@@ -232,24 +237,26 @@ figure_8_helpful <- notes_with_ratings |>
         helpfulImportantContext,
     )
 
+
 figure_8_longer <- figure_8_helpful |> pivot_longer(cols = -noteId, names_to = "Reason", values_to = "Flag")
 
+
 figure_8_longer <- figure_8_longer |> filter(Flag == 1)
+
 figure_8_longer <- figure_8_longer |>
     group_by(Reason) |>
-    summarise(Number_Notes = n_distinct(noteId))
+    summarise(Number_of_Ratings = n())
 
-figure_8_longer |> ggplot(aes(x = Number_Notes, y = reorder(Reason, Number_Notes))) +
+figure_8_longer |> ggplot(aes(x = Number_of_Ratings, y = reorder(Reason, Number_of_Ratings))) +
     geom_bar(stat = "identity", fill = "blue", width = 0.2) +
     labs(
-        x = "Number of Birdwatch Notes",
+        x = "Number of Ratings",
         y = "Reason"
     )
 ```
 
 ```{r figure-9, fig.width=4, fig.height=4}
-figure_9_helpful <- notes_with_ratings |>
-    filter(classification == "NOT_MISLEADING") |>
+figure_9_helpful <- notes_with_ratingsIJ |>
     select(
         noteId,
         notHelpfulSourcesMissingOrUnreliable,
@@ -267,15 +274,17 @@ figure_9_helpful <- notes_with_ratings |>
 
 figure_9_longer <- figure_9_helpful |> pivot_longer(cols = -noteId, names_to = "Reason", values_to = "Flag")
 
+view(figure_9_longer)
+
 figure_9_longer <- figure_9_longer |> filter(Flag == 1)
 figure_9_longer <- figure_9_longer |>
     group_by(Reason) |>
-    summarise(Number_Notes = n_distinct(noteId))
+    summarise(Number_of_Ratings = n())
 
-figure_9_longer |> ggplot(aes(x = Number_Notes, y = reorder(Reason, Number_Notes))) +
-    geom_bar(stat = "identity", fill = "blue", width = 0.2) +
+figure_9_longer |> ggplot(aes(x = Number_of_Ratings, y = reorder(Reason, Number_of_Ratings))) +
+    geom_bar(stat = "identity", fill = "red", width = 0.2) +
     labs(
-        x = "Number of Birdwatch Notes",
+        x = "Number of Ratings",
         y = "Reason"
     )
 ```
