@@ -1,3 +1,15 @@
+---
+title: "Replication of \"Community-Based Fact-Checking on Twitter's Birdwatch Platform\""
+author: "Dereck Taverne(CUNY/ Baruch College) & Ahmed Lotfi (Wagner College)"
+date: "6/20/2025"
+output:
+  html_document:
+    theme: readable
+    toc: true
+    toc_float: true
+    code_folding: hide
+---
+# Used Libraries 
 ```{r setup, include=FALSE}
 library(here)
 library(scales)
@@ -7,9 +19,19 @@ library(stringr)
 
 knitr::opts_chunk$set(echo = TRUE)
 ```
+# Overview: 
+In this project, we are trying to replicate figures: 2,3,4,5C,7C,8,9,10 from the "Community-Based Fact-Checking on Twitter's Birdwatch Platform". You can find the original paper [here](https://arxiv.org/pdf/2104.07175). 
+We couldn't get the same exact data the author used. We got a very similiar data. In our data, we have 9,377 notes and 45,885 ratings. In the original paper, the author had 11,802 notes and 52,981 ratings. 
+
+# Loading Data
+We are loading 2 files: notes and ratings for the these notes after downloading from Birdwatch publicly avaliable Data
+
+### Disclamer: 
+We have a slightly different data comparing to the one the author used in the paper. 
+
+```{r load data, warning=FALSE, message=FALSE}
 
 
-```{r load data}
 notes <- read_tsv("Data/notes.tsv")
 view(notes)
 
@@ -24,9 +46,10 @@ view(notes_with_ratings)
 
 ```
 
-```{r work on Figure 2, fig.width=4, fig.height=4}
-n_distinct(notes_with_ratings$classification) # to make sure what are the possible options for this column 
 
+# Figure 2 Replication:Number of users who responded “Yes” to the question “Did you link to sources you believe most people would consider trustworthy?”
+
+```{r work on Figure 2, warning=FALSE, message=FALSE}
 work_figure_2 <- notes_with_ratings |> group_by(classification, trustworthySources) |> summarise(count = n_distinct(noteId))
 view(work_figure_2)
 
@@ -54,8 +77,17 @@ labs(
 )
 ```
 
+## Figure 2 Report & discription: 
+    As a try to replicate figure 2, we got a very similiar results to the original paper. We believe that the differences between our figure and the figure in the original data is due to the slight difference in the dataset. 
+    Our findings are: 
+    Notes that reported the tweet as Misleading & believe they included trustworthy sources: 6026
+    Notes that reported the tweet as Misleading & don't have trustworthy sources: 2094
+    Notes that reported the tweet as not-misleading & believe they included trustworthy sources: 728
+    Notes that reorted the tweet as Misleading & don't have trustworthy sources: 529
 
-```{r work on Figure 3, fig.width=4, fig.height=4}
+
+# Figure 3 Replication: 
+```{r work on Figure 3, warning=FALSE, message=FALSE}
 
 view(notes_with_ratings)
 
@@ -87,8 +119,12 @@ labs(
 
 ```
 
+## Figure 3 Description: 
+Number of Birdwatch notes per checkbox answer option in response to the question “Why do you believe this tweet may be misleading?
 
-```{r work Figure 4, fig.width=4, fig.height=4}
+
+# Figure 4 Replication: 
+```{r work Figure 4, warning=FALSE, message=FALSE}
 
 view(notes)
 
@@ -119,7 +155,14 @@ labs(
 
 ```
 
-```{r work Figure 5C as the paper, fig.width=4, fig.height=4}
+## Figure 4 Description: 
+Number of Birdwatch notes per checkbox answer option in response to the question “Why do you believe this tweet is not misleading?
+
+
+# Figure 5C Replication as the paper:
+In this figure, we counted the words in the summary similiar to what the author did. We are counting the words in the URL as well as the the description.
+
+```{r work Figure 5C as the paper, warning=FALSE, message=FALSE}
 
 work_figure_5_c_as_the_paper <- notes_with_ratings |> distinct(noteId, .keep_all = TRUE)
 
@@ -144,11 +187,16 @@ scale_y_log10(
 ```
 
 
-#Explain it
+## Figure 5C as the paper Description: 
+The figure shows CCDF (Complementary Cumulative Distribution Function) for the word count 
 
-```{r work Figure 5C our figure, fig.width=4, fig.height=4}
 
-#view(notes_with_ratings |> filter(noteId == 1418151334025461800)) trying something
+# Figure 5C our understanding:
+Here, we changed the any links to be only one word, which is "URL". So, there is significant reduction in the total number of words per note
+
+```{r work Figure 5C our figure, warning=FALSE, message=FALSE}
+
+#view(notes_with_ratings |> filter(noteId == 1399427393106825200)) 
 
 
 work_figure_5_c <- notes_with_ratings |> distinct(noteId, .keep_all = TRUE)
@@ -170,6 +218,8 @@ mutate(
 
     # (rank-1) /n  ==> the fraction of the tweets that have wordcount smaller than the current 
 
+    view(work_figure_5_c)
+
 work_figure_5_c |> ggplot(aes(x = wordcount, y = CCDF, color = classification)) + 
 geom_line() + 
 scale_y_log10(
@@ -178,9 +228,13 @@ scale_y_log10(
     )
 ```
 
+## Figure 5C our understanding Description: 
+The figure shows CCDF (Complementary Cumulative Distribution Function) for the word count 
 
 
-```{r figure-7a, fig.width=4, fig.height=4}
+# Figure 7 Replication: 
+
+```{r figure-7a, warning=FALSE, message=FALSE}
 work_figure_7a <- notes_with_ratingsIJ |> 
     group_by(classification, noteId) |>
     summarize(helpful_count = sum(helpful, na.rm = TRUE), votes_count = n()) |>
@@ -202,7 +256,13 @@ work_figure_7a |> ggplot(aes(x = helpful_ratio, y = CCDF, color = classification
     )
 ```
 
-```{r figure-7b, fig.width=4, fig.height=4}
+## Figure 7a Description: 
+CCDFs for helpfulness ratio grouped by the classification of the notes: misleading or not misleading
+
+
+# Figure 7b Replication:
+
+```{r figure-7b, warning=FALSE, message=FALSE}
 
 work_figure_7b<- notes_with_ratingsIJ |>
      group_by(classification, noteId) |>
@@ -223,7 +283,11 @@ work_figure_7b |> ggplot(aes(x = votes_count, y = CCDF, color = classification))
     )
 ```
 
-```{r figure_8, fig.width=4, fig.height=4}
+## Figure 7b Description: 
+The figures shows the CCDFs for total votes grouped by the classification of the note
+
+# Figure 8 Replication: 
+```{r figure_8}
 figure_8_helpful <- notes_with_ratingsIJ |>
     select(
         noteId,
@@ -255,7 +319,11 @@ figure_8_longer |> ggplot(aes(x = Number_of_Ratings, y = reorder(Reason, Number_
     )
 ```
 
-```{r figure-9, fig.width=4, fig.height=4}
+## Figure 8 Description: 
+Number of ratings per checkbox answer option in response to the prompt “What about this note was helpful to you?
+
+# Figure 9 Replication: 
+```{r figure_9, warning=FALSE, message=FALSE}
 figure_9_helpful <- notes_with_ratingsIJ |>
     select(
         noteId,
@@ -289,5 +357,81 @@ figure_9_longer |> ggplot(aes(x = Number_of_Ratings, y = reorder(Reason, Number_
     )
 ```
 
+## Figure 9 Description: 
+Number of ratings per checkbox answer option in response to the question “Help us understand why this note was unhelpful. 
 
 
+# Figure 10 Replication: 
+
+```{r figure_10, warning=FALSE, message=FALSE}
+tweets <- load("Data/source_tweets.Rdata")
+tweets <- get(tweets)
+
+
+tweets <- tweets |> select(
+    noteId, 
+    tweetId, 
+    source_followers_count, 
+    source_verified, 
+    source_friends_count, 
+    source_account_created_at,
+)
+
+tweets_with_ratings <- inner_join(tweets, notes_with_ratingsIJ, by="noteId")
+
+view(tweets_with_ratings)
+
+
+current_date <- Sys.Date()
+current_year <- format(current_date, "%Y")
+
+tweets_with_ratings <- tweets_with_ratings |> mutate(
+    account_age = as.numeric(current_year) - as.numeric(year(tweets_with_ratings$source_account_created_at)),
+    word_count = str_count(summary, boundary("word")),
+    classification = ifelse(classification == "MISINFORMED_OR_POTENTIALLY_MISLEADING", 1, 0)
+    )
+
+tweets_with_ratings <- tweets_with_ratings |> mutate(
+    source_followers_count = scale(source_followers_count), 
+    source_friends_count = scale(source_friends_count), 
+    account_age = scale(account_age), 
+    word_count = scale(word_count), 
+) |> group_by(noteId) |> 
+mutate(
+    total_votes = n(),
+    helpful_num  = sum(helpful),
+    helpful_ratio = helpful_num/ total_votes, 
+)
+
+
+view(tweets_with_ratings)
+
+model <- glm(helpful_ratio ~ (source_followers_count + source_verified + source_friends_count + account_age + word_count + classification + trustworthySources), data = tweets_with_ratings, family = "binomial")
+
+coef_data <- enframe(coef(model))
+
+coef_data <- coef_data |> mutate(
+    stderr = enframe(summary(model)$coefficients[, "Std. Error"])$value
+) |> filter(name != "(Intercept)")
+
+
+coef_data |> ggplot(aes(x = name, y = value)) + geom_point(size=5, color = "#5bc05b") + 
+geom_errorbar(aes(ymin = value - (stderr * 2.58), ymax = value + (stderr* 2.58)), width = 0.2, color = "5bc05b") 
+```
+
+## Figure 10 Description: 
+Number of ratings per checkbox answer option in response to the prompt “What about this note was helpful to you?
+
+# Extension Ideas: 
+
+1. How do features of the notes, such as politeness and specificity in Birdwatch notes, influence their helpfulness ratio (helpful votes to the total count)?  (We can use built-in libraries for politeness in R or trained libraries such as Stanford's Politeness API.) 
+
+   a- Possible Independent variables: Framing type, politeness score, specificity score, emotional tone, sentiment, length, etc.
+   
+   b- Dependent: helpful ratio 
+
+1. How does the timing of Birdwatch notes (early vs. late after tweet publication) affect their influence on tweet engagement and misinformation spread?
+
+2. Do Birdwatch notes affect the behavior of the original tweet authors (e.g., deleting tweets, posting follow-ups, changing tone)
+
+3. How do different user demographics (e.g., follower count, verification status, tweet topic) influence which tweets get fact-checked on Birdwatch?
